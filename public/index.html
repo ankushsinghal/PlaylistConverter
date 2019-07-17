@@ -30,6 +30,8 @@
       </div>
       <div id="oauth">
       </div>
+      <div id="user-playlists">
+      </div>
       <button class="btn btn-default" id="obtain-new-token">Obtain new token using the refresh token</button>
     </div>
   </div>
@@ -56,12 +58,21 @@
     </script>
 
   <script id="oauth-template" type="text/x-handlebars-template">
-      <h2>oAuth info</h2>
-      <dl class="dl-horizontal">
-        <dt>Access token</dt><dd class="text-overflow">{{access_token}}</dd>
-        <dt>Refresh token</dt><dd class="text-overflow">{{refresh_token}}</dd>
-      </dl>
-    </script>
+    <h2>oAuth info</h2>
+    <dl class="dl-horizontal">
+      <dt>Access token</dt><dd class="text-overflow">{{access_token}}</dd>
+      <dt>Refresh token</dt><dd class="text-overflow">{{refresh_token}}</dd>
+    </dl>
+  </script>
+
+  <script id="user-playlists-template" type="text/x-handlebars-template">
+    <h2>User Playlists info</h2>
+    <dl class="dl-horizontal">
+      {{#each items}}
+        <dt>Playlist Name</dt><dd>{{name}}</dd>
+      {{/each}}
+    </dl>
+  </script>
 
   <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.1/handlebars.min.js"></script>
   <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
@@ -90,6 +101,10 @@
         oauthTemplate = Handlebars.compile(oauthSource),
         oauthPlaceholder = document.getElementById('oauth');
 
+      var userPlaylistsSource = document.getElementById('user-playlists-template').innerHTML,
+        userPlaylistsTemplate = Handlebars.compile(userPlaylistsSource),
+        userPlaylistsPlaceHolder = document.getElementById('user-playlists');
+
       var params = getHashParams();
 
       var access_token = params.access_token,
@@ -116,6 +131,16 @@
 
               $('#login').hide();
               $('#loggedin').show();
+            }
+          });
+
+          $.ajax({
+            url: 'https://api.spotify.com/v1/me/playlists',
+            headers: {
+              'Authorization': 'Bearer ' + access_token
+            },
+            success: function (response) {
+              userPlaylistsPlaceHolder.innerHTML = userPlaylistsTemplate(response);
             }
           });
         } else {
