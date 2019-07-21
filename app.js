@@ -1,6 +1,8 @@
 var express = require('express');
 var querystring = require('querystring');
 var request = require('request');
+var path = require('path');
+var exphbs = require('express-handlebars');
 var credentials = require('./credentials');
 
 /**
@@ -19,8 +21,15 @@ var generateRandomString = function (length) {
 };
 
 var app = express();
-
 app.use(express.static(__dirname + '/public'));
+
+app.set('views', path.join(__dirname, 'views'));
+app.engine('handlebars', exphbs());
+app.set('view engine', 'handlebars');
+
+app.get('/', function(req, res){
+  res.render('index');
+});
 
 app.get('/login', function(req, res){
   var state = generateRandomString(16);
@@ -67,15 +76,32 @@ app.get('/callback', function(req, res){
         var access_token = body.access_token;
         var refresh_token = body.refresh_token;
 
-        var options = {
+        var details;
+
+        var userOptions = {
           url: 'https://api.spotify.com/v1/me',
           headers: { 'Authorization': 'Bearer ' + access_token },
           json: true
         };
 
         // use the access token to access the Spotify Web API
-        request.get(options, function (error, response, body) {
+        request.get(userOptions, function (error, response, body) {
           console.log(body);
+
+          var userDetails = body;
+          var playlistOptions = {
+            url: 'https://api.spotify.com/v1/me/playlists',
+            headers: {'Authorization': 'Bearer ' + access_token},
+            json: true
+          };
+
+          request.get(playlistOptions, function(error, response, body){
+            console.log(body);
+
+            var userPlaylistsDetails = body;
+            details = {user: userDetails, userPlaylists: userPlaylistsDetails};
+
+          });
         });
 
         // we can also pass the token to the browser to make requests from there
