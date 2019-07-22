@@ -5,6 +5,8 @@ var path = require('path');
 var exphbs = require('express-handlebars');
 var credentials = require('./credentials');
 
+var global_spotify_access_token;
+
 /**
  * Generates a random string containing numbers and letters
  * @param  {number} length The length of the string
@@ -76,6 +78,7 @@ app.get('/callback', function(req, res){
         var access_token = body.access_token;
         var refresh_token = body.refresh_token;
 
+        global_spotify_access_token = access_token;
         var details;
 
         var userOptions = {
@@ -101,15 +104,10 @@ app.get('/callback', function(req, res){
             var userPlaylistsDetails = body;
             details = {user: userDetails, userPlaylists: userPlaylistsDetails};
 
+            res.render('login', details);
+
           });
         });
-
-        // we can also pass the token to the browser to make requests from there
-        res.redirect('/#' +
-          querystring.stringify({
-            access_token: access_token,
-            refresh_token: refresh_token
-          }));
       }
       else{
         res.redirect('/#' +
@@ -120,6 +118,22 @@ app.get('/callback', function(req, res){
     });
 
   }
+
+});
+
+app.get('/playlist/:playlistId-:playlistName', function(req, res){
+  
+  var playlistOptions = {
+    url: 'https://api.spotify.com/v1/playlists/' + req.params.playlistId,
+    headers: { 'Authorization': 'Bearer ' + global_spotify_access_token},
+    json: true
+  };
+
+  request.get(playlistOptions, function(error, response, body){
+    //console.log(body);
+    var trackList = body.tracks.items;
+    console.log(trackList);
+  });
 
 });
 
