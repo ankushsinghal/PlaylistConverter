@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Spotify Duplex</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+    integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+  <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+
+<body>
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+    integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+    crossorigin="anonymous"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
+    integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+    crossorigin="anonymous"></script>
+  <script>
+    $(function () {
+      $('#header').load('html/header.html');
+      $('#footer').load('html/footer.html');
+    });
+  </script>
+  <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
+
+    <header class="masthead mb-auto">
+      <div id="header"></div>
+    </header>
+
+    <main role="main" class="inner cover">
+      <h1 class="cover-heading">Spotify Duplex</h1>
+      <p class="lead">Spotify Duplex is the one-stop place to transform your Spotify playlists into a Youtube playlist
+        and vice-versa, so that you can enjoy your favourite music on your preferable streaming website. So happy
+        listening!</p>
+      <p class="lead text-center mt-5">
+        <a href="/youtube/login" class="btn btn-lg btn-secondary">Login with Youtube <img src="images/youtube_logo.png" height="30"
+            alt="spotify logo" /></a>
+      </p>
+    </main>
+
+    <footer class="mastfoot mt-auto">
+      <div id="footer"></div>
+    </footer>
+
+  </div>
+</body>
+
+</html>

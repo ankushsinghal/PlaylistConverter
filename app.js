@@ -3,11 +3,11 @@ var querystring = require('querystring');
 var request = require('request');
 var path = require('path');
 var exphbs = require('express-handlebars');
+var Promise = require('promise');
 var credentials = require('./credentials');
 
 var global_spotify_access_token;
 var global_youtube_access_token;
-var global_playlist_name;
 
 /**
  * Generates a random string containing numbers and letters
@@ -36,8 +36,8 @@ app.get('/', function(req, res){
 });
 
 app.get('/login', function(req, res){
-  var state = generateRandomString(16);
 
+  var state = generateRandomString(16);
   var scope = 'user-read-private user-read-email';
   res.redirect('https://accounts.spotify.com/authorize?' +
     querystring.stringify({
@@ -53,7 +53,6 @@ app.get('/callback', function(req, res){
   
   var code = req.query.code || null;
   var state = req.query.state || null;
-  console.log('nodemon');
 
   if(state === null){
     res.redirect('/#' + 
@@ -81,35 +80,7 @@ app.get('/callback', function(req, res){
         var refresh_token = body.refresh_token;
 
         global_spotify_access_token = access_token;
-        var details;
-
-        var userOptions = {
-          url: 'https://api.spotify.com/v1/me',
-          headers: { 'Authorization': 'Bearer ' + access_token },
-          json: true
-        };
-
-        // use the access token to access the Spotify Web API
-        request.get(userOptions, function (error, response, body) {
-          console.log(body);
-
-          var userDetails = body;
-          var playlistOptions = {
-            url: 'https://api.spotify.com/v1/me/playlists',
-            headers: {'Authorization': 'Bearer ' + access_token},
-            json: true
-          };
-
-          request.get(playlistOptions, function(error, response, body){
-            console.log(body);
-
-            var userPlaylistsDetails = body;
-            details = {user: userDetails, userPlaylists: userPlaylistsDetails};
-
-            res.render('login', details);
-
-          });
-        });
+        res.redirect('http://localhost:8888/youtube');
       }
       else{
         res.redirect('/#' +
@@ -123,37 +94,26 @@ app.get('/callback', function(req, res){
 
 });
 
-app.get('/playlist/:playlistId-:playlistName', function(req, res){
-  
-  var playlistOptions = {
-    url: 'https://api.spotify.com/v1/playlists/' + req.params.playlistId,
-    headers: { 'Authorization': 'Bearer ' + global_spotify_access_token},
-    json: true
-  };
-
-  global_playlist_name = req.params.playlistName;
-
-  request.get(playlistOptions, function(error, response, body){
-    //console.log(body);
-    var trackList = body.tracks.items;
-    console.log(trackList);
-
-    var state = generateRandomString(16);
-    var scope = 'https://www.googleapis.com/auth/youtube';
-
-    res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' + 
-                  querystring.stringify({
-                    client_id: credentials.youtube_client_id,
-                    redirect_uri: credentials.youtube_redirect_uri,
-                    scope: scope,
-                    access_type: 'offline',
-                    state: state,
-                    response_type: 'code'
-                  }));
-  });
+app.get('/youtube', function(req, res){
+  res.render('index_youtube');
 });
 
-app.get('/youtube/callback', function(req,res){
+app.get('/youtube/login', function(req, res){
+  var state = generateRandomString(16);
+  var scope = 'https://www.googleapis.com/auth/youtube';
+
+  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' +
+    querystring.stringify({
+      client_id: credentials.youtube_client_id,
+      redirect_uri: credentials.youtube_redirect_uri,
+      scope: scope,
+      access_type: 'offline',
+      state: state,
+      response_type: 'code'
+    }));
+});
+
+app.get('/youtube/callback', function (req, res) {
   var code = req.query.code || null;
   var state = req.query.state || null;
 
@@ -176,48 +136,150 @@ app.get('/youtube/callback', function(req,res){
       },
       json: true
     };
-    console.log(authOptions);
-    request.post(authOptions, function(error, response, body){
-      if(!error && response.statusCode == 200){
+
+    request.post(authOptions, function (error, response, body) {
+      if (!error && response.statusCode === 200) {
         var access_token = body.access_token;
         var refresh_token = body.refresh_token;
 
         global_youtube_access_token = access_token;
-        console.log(global_youtube_access_token);
-
-        var playlistAuthOptions = {
-          url: 'https://www.googleapis.com/youtube/v3/playlists?part=snippet,status',
-          body: {
-            snippet: {
-              title: global_playlist_name,
-            },
-            status: {
-              privacyStatus: 'public'
-            }
-          },
-          headers: {
-            'Authorization': 'Bearer ' + global_youtube_access_token
-          },
-          json: true
-        };
-        console.log(playlistAuthOptions);
-        request.post(playlistAuthOptions, function(error, response, body){
-          console.log(error);
-          console.log(response);
-          console.log(body);
-          if(!error && response.statusCode == 200){
-            console.log('PLAYLIST SHOULD NOW BE CREATED');
-          }
-          else{
-            console.log('ERROR 2');
-          }
-        });
+        res.redirect('http://localhost:8888/playlists');
       }
-      else{
-        console.log('ERROR');
+      else {
+        res.redirect('/#' +
+          querystring.stringify({
+            error: 'invalid_token'
+          }));
       }
     });
   }
+});
+
+function getSpotifyUserDetails(){
+  
+  var userOptions = {
+    url: 'https://api.spotify.com/v1/me',
+    headers: { 'Authorization': 'Bearer ' + global_spotify_access_token },
+    json: true
+  };
+
+  // use the access token to access the Spotify Web API
+  return new Promise(function(resolve, reject){
+    request.get(userOptions, function (error, response, body) {
+      if (!error && response.statusCode === 200) {
+        console.log(body);
+        userDetails = body;
+        resolve(userDetails);
+      }
+      else {
+        reject(error);
+      }
+    });
+  });
+}
+
+function getSpotifyPlaylists(){
+  
+  var playlistOptions = {
+    url: 'https://api.spotify.com/v1/me/playlists',
+    headers: { 'Authorization': 'Bearer ' + global_spotify_access_token },
+    json: true
+  };
+
+  return new Promise(function(resolve, reject){
+    request.get(playlistOptions, function (error, response, body) {
+      if (!error && response.statusCode === 200) {
+        console.log(body);
+        userPlaylistsDetails = body;
+        resolve(userPlaylistsDetails);
+      }
+      else {
+        reject(error);
+      }
+    });
+  });
+}
+
+function displaySpotifyPlaylists() {
+  const promises = [];
+  promises.push(getSpotifyUserDetails());
+  promises.push(getSpotifyPlaylists());
+  return Promise.all(promises);
+}
+
+app.get('/playlists', function(req, res){
+  
+  var details;
+
+  displaySpotifyPlaylists().then(function(values){
+    details = {user: values[0], userPlaylists: values[1]};
+    res.render('playlists', details);
+  });
+
+});
+
+function getSpotifyPlaylistById(playlistId){
+  
+  var playlistOptions = {
+    url: 'https://api.spotify.com/v1/playlists/' + playlistId,
+    headers: { 'Authorization': 'Bearer ' + global_spotify_access_token },
+    json: true
+  };
+
+  return new Promise(function(resolve, reject){
+    request.get(playlistOptions, function (error, response, body) {
+      if(!error && response.statusCode === 200){
+        console.log("GOT SPOTIFY PLAYLIST BY ID");
+        resolve(body);
+      }
+      else{
+        reject(error);
+      }
+    });
+  });
+}
+
+function createYoutubePlaylist(playlistName){
+  
+  var playlistAuthOptions = {
+    url: 'https://www.googleapis.com/youtube/v3/playlists?part=snippet,status',
+    body: {
+      snippet: {
+        title: playlistName,
+      },
+      status: {
+        privacyStatus: 'public'
+      }
+    },
+    headers: {
+      'Authorization': 'Bearer ' + global_youtube_access_token
+    },
+    json: true
+  };
+
+  return new Promise(function(resolve, reject){
+    request.post(playlistAuthOptions, function (error, response, body) {
+      if (!error && response.statusCode === 200) {
+        console.log("YOUTUBE PLAYLIST CREATED");
+        resolve(body);
+      }
+      else {
+        reject(error);
+      }
+    });
+  });
+}
+
+app.get('/playlist/:playlistId-:playlistName', function(req, res){
+
+  const promises = [];
+  promises.push(createYoutubePlaylist(req.params.playlistName));
+  promises.push(getSpotifyPlaylistById(req.params.playlistId));
+
+  Promise.all(promises).then(function(values){
+    console.log(values[1]);
+  });
+
 });
 
 console.log('Listening on 8888');
