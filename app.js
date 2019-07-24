@@ -80,7 +80,7 @@ app.get('/callback', function(req, res){
         var refresh_token = body.refresh_token;
 
         global_spotify_access_token = access_token;
-        res.redirect('http://localhost:8888/youtube');
+        res.redirect('http://localhost:8888/playlists');
       }
       else{
         res.redirect('/#' +
@@ -229,7 +229,6 @@ function getSpotifyPlaylistById(playlistId){
   return new Promise(function(resolve, reject){
     request.get(playlistOptions, function (error, response, body) {
       if(!error && response.statusCode === 200){
-        console.log("GOT SPOTIFY PLAYLIST BY ID");
         resolve(body);
       }
       else{
@@ -260,10 +259,47 @@ function createYoutubePlaylist(playlistName){
   return new Promise(function(resolve, reject){
     request.post(playlistAuthOptions, function (error, response, body) {
       if (!error && response.statusCode === 200) {
-        console.log("YOUTUBE PLAYLIST CREATED");
         resolve(body);
       }
       else {
+        console.log(error);
+        console.log(body);
+        reject(error);
+      }
+    });
+  });
+}
+
+function convertToYoutubeSearchQuery(track_name, track_artists){
+  var query = track_name + ' by ';
+  for(var num_artists = 0; num_artists < track_artists.length - 2; num_artists++){
+    query += track_artists[num_artists] + ', ';
+  }
+  if(track_artists.length > 1){
+    query += track_artists[track_artists.length - 2] + ' and ';
+  }
+  query += track_artists[track_artists.length - 1];
+  return query;
+}
+
+function getYoutubeVideoId(youtube_query){
+  var youtubeQueryOptions = {
+    url: 'https://www.googleapis.com/youtube/v3/search?' + 
+    querystring.stringify({
+      part: 'snippet',
+      maxResults: 1,
+      q: youtube_query,
+      key: credentials.api_key
+    })
+  };
+
+  return new Promise(function(resolve, reject){
+    request.get(youtubeQueryOptions, function(error, response, body){
+      if(!error && response.statusCode === 200){
+        body = JSON.parse(body);
+        resolve(body['items'][0]['id']['videoId']);
+      }
+      else{
         reject(error);
       }
     });
@@ -273,11 +309,34 @@ function createYoutubePlaylist(playlistName){
 app.get('/playlist/:playlistId-:playlistName', function(req, res){
 
   const promises = [];
-  promises.push(createYoutubePlaylist(req.params.playlistName));
+  //promises.push(createYoutubePlaylist(req.params.playlistName));
   promises.push(getSpotifyPlaylistById(req.params.playlistId));
 
   Promise.all(promises).then(function(values){
-    console.log(values[1]);
+    var tracks = values[0]['tracks']['items'];
+    const innerPromises = [];
+    for(var track_no = 0; track_no < tracks.length; track_no++){
+      var track = tracks[track_no]['track'];
+      var track_name = track['name'];
+      var track_artists = [];
+      var track_artists_details = track['artists'];
+      for(var artist_no = 0; artist_no < track_artists_details.length; artist_no++){
+        var track_artists_detail = track_artists_details[artist_no];
+        var artist_name = track_artists_detail['name'];
+        track_artists.push(artist_name);
+      }
+      var youtube_query = convertToYoutubeSearchQuery(track_name, track_artists);
+      console.log(youtube_query);
+      innerPromises.push(getYoutubeVideoId(youtube_query));
+    }
+    Promise.all(innerPromises).then(function(values){
+      var youtube_url = 'http://www.youtube.com/watch_videos?video_ids=';
+      for(var id_no = 0; id_no < values.length - 1; id_no++){
+        youtube_url += values[id_no] + ',';
+      }
+      youtube_url += values[values.length - 1];
+      res.redirect(youtube_url);
+    });
   });
 
 });
